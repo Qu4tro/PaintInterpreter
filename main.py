@@ -1,4 +1,5 @@
 from typing import NamedTuple
+from collections import defaultdict
 
 import fileinput
 import sys
@@ -15,21 +16,21 @@ def is_int(n):
 
 
 class Board():
-
     default = 'O'
 
     def __init__(self, width, height):
-
         self.width = width
         self.height = height
-        self.colors = {}
+        self.colors = defaultdict(lambda: Board.default)
+
+    def hasCoordinates(self, x, y):
+        return x > 0 and y > 0 and x <= self.width and y <= self.height
 
     def __str__(self):
         chars = []
-        for y in range(1, self.height):
-            for x in range(1, self.height):
-                color = self.colors[(x, y)] if (x, y) in self.colors else Board.default
-                chars.append(color)
+        for y in range(1, self.height + 1):
+            for x in range(1, self.width + 1):
+                chars.append(self.colors[(x, y)])
             chars.append('\n')
         return "".join(chars)
 
@@ -158,7 +159,38 @@ class FillColor(NamedTuple):
     color: str
 
     def apply(self, board):
-        ...
+        queue = []
+        queue.append((self.x, self.y))
+
+        while queue:
+            x, y = queue.pop()
+            around = [(x - 1, y - 1), (x, y - 1), (x + 1, y - 1),
+                      (x - 1, y), (x + 1, y),
+                      (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)
+                      ]
+            for c in around:
+                if board.hasCoordinates(*c) and \
+                   board.colors[c] == board.colors[(x, y)]:
+                    if c not in queue:
+                        queue.append(c)
+
+            board = Coloring(x, y, self.color).apply(board)
+
+        return board
+
+    @classmethod
+    def from_args(cls, args):
+        try:
+            x, y, color = args
+            x = int(x)
+            y = int(y)
+
+            if x > 0 and y > 0:
+                return cls(x, y, color)
+            else:
+                return None
+        except ValueError:
+            return None
 
 
 class Show(NamedTuple):

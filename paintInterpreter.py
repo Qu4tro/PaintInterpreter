@@ -5,6 +5,9 @@ import fileinput
 import sys
 
 
+white = 'O'
+
+
 def is_int(n):
     try:
         int(n)
@@ -16,12 +19,11 @@ def is_int(n):
 
 
 class Board():
-    default = 'O'
 
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.colors = defaultdict(lambda: Board.default)
+        self.colors = defaultdict(lambda: white)
 
     def hasCoordinates(self, x, y):
         return x > 0 and y > 0 and x <= self.width and y <= self.height
@@ -36,7 +38,6 @@ class Board():
 
 
 # ################# Commands ##################
-
 
 class New(NamedTuple):
     width: int
@@ -214,28 +215,20 @@ class Exit(NamedTuple):
 # ################# Parsing and validating ##################
 
 
-def makeCommand(command, args):
+def makeCommand(line):
+    char, *args = line.split()
 
-    if command == 'I':
-        return New.from_args(args)
+    commandChars = {'I': New,
+                    'C': Clean,
+                    'L': Coloring,
+                    'V': VerticalColoring,
+                    'H': HorizontalColoring,
+                    'F': FillColor,
+                    'S': Show,
+                    'X': Exit,
+                    }
 
-    elif command == 'C':
-        return Clean.from_args(args)
-
-    elif command == 'L':
-        return Coloring.from_args(args)
-
-    elif command == 'V':
-        return VerticalColoring.from_args(args)
-
-    elif command == 'H':
-        return HorizontalColoring.from_args(args)
-
-    elif command == 'F':
-        return FillColor.from_args(args)
-
-    elif command == 'S':
-        return Show.from_args(args)
+    return commandChars[char].from_args(args)
 
 
 # ################# Interpreter Loop ##################
@@ -247,11 +240,11 @@ def main():
     board = None
     prompt()
     for line in fileinput.input():
-        commandChar, *args = line.split()
-        command = makeCommand(commandChar, args)
-        # print(command)
-        board = command.apply(board)
+        command = makeCommand(line)
+        if command is None:
+            continue
 
+        board = command.apply(board)
         prompt()
 
 

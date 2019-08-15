@@ -5,21 +5,12 @@ import fileinput
 import sys
 
 
-white = 'O'
-
-
-def is_int(n):
-    try:
-        int(n)
-        return True
-    except ValueError:
-        return False
+white = "O"
 
 # #################  Board   ##################
 
 
-class Board():
-
+class Board:
     def __init__(self, width, height):
         self.width = width
         self.height = height
@@ -33,13 +24,27 @@ class Board():
         for y in range(1, self.height + 1):
             for x in range(1, self.width + 1):
                 chars.append(self.colors[(x, y)])
-            chars.append('\n')
+            chars.append("\n")
         return "".join(chars)
 
 
 # ################# Commands ##################
 
-class New(NamedTuple):
+
+class Command:
+    def apply(self, board):
+        return board
+
+    @classmethod
+    def from_args(cls, args):
+        return cls()
+
+
+class NoOp(NamedTuple, Command):
+    ...
+
+
+class New(NamedTuple, Command):
     width: int
     height: int
 
@@ -57,12 +62,12 @@ class New(NamedTuple):
             if m > 0 and n > 0:
                 return cls(m, n)
             else:
-                return None
+                return NoOp()
         except ValueError:
-            return None
+            return NoOp()
 
 
-class Clean(NamedTuple):
+class Clean(Command, NamedTuple):
     def apply(self, board):
         board.colors.clear()
         return board
@@ -72,7 +77,7 @@ class Clean(NamedTuple):
         return cls()
 
 
-class Coloring(NamedTuple):
+class Coloring(NamedTuple, Command):
     x: int
     y: int
     color: str
@@ -91,12 +96,12 @@ class Coloring(NamedTuple):
             if x > 0 and y > 0:
                 return cls(x, y, color)
             else:
-                return None
+                return NoOp()
         except ValueError:
-            return None
+            return NoOp()
 
 
-class VerticalColoring(NamedTuple):
+class VerticalColoring(NamedTuple, Command):
     x: int
     y1: int
     y2: int
@@ -120,12 +125,12 @@ class VerticalColoring(NamedTuple):
             if x > 0 and y1 > 0 and y2 > 0:
                 return cls(x, y1, y2, color)
             else:
-                return None
+                return NoOp()
         except ValueError:
-            return None
+            return NoOp()
 
 
-class HorizontalColoring(NamedTuple):
+class HorizontalColoring(NamedTuple, Command):
     y: int
     x1: int
     x2: int
@@ -149,12 +154,12 @@ class HorizontalColoring(NamedTuple):
             if y > 0 and x1 > 0 and x2 > 0:
                 return cls(y, x1, x2, color)
             else:
-                return None
+                return NoOp()
         except ValueError:
-            return None
+            return NoOp()
 
 
-class FillColor(NamedTuple):
+class FillColor(NamedTuple, Command):
     x: int
     y: int
     color: str
@@ -165,13 +170,18 @@ class FillColor(NamedTuple):
 
         while queue:
             x, y = queue.pop()
-            around = [(x - 1, y - 1), (x, y - 1), (x + 1, y - 1),
-                      (x - 1, y), (x + 1, y),
-                      (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)
-                      ]
+            around = [
+                (x - 1, y - 1),
+                (x, y - 1),
+                (x + 1, y - 1),
+                (x - 1, y),
+                (x + 1, y),
+                (x - 1, y + 1),
+                (x, y + 1),
+                (x + 1, y + 1),
+            ]
             for c in around:
-                if board.hasCoordinates(*c) and \
-                   board.colors[c] == board.colors[(x, y)]:
+                if board.hasCoordinates(*c) and board.colors[c] == board.colors[(x, y)]:
                     if c not in queue:
                         queue.append(c)
 
@@ -189,12 +199,12 @@ class FillColor(NamedTuple):
             if x > 0 and y > 0:
                 return cls(x, y, color)
             else:
-                return None
+                return NoOp()
         except ValueError:
-            return None
+            return NoOp()
 
 
-class Show(NamedTuple):
+class Show(NamedTuple, Command):
     def apply(self, board):
         print(str(board))
         return board
@@ -204,7 +214,7 @@ class Show(NamedTuple):
         return cls()
 
 
-class Exit(NamedTuple):
+class Exit(NamedTuple, Command):
     def apply(self, board):
         sys.quit()
 
@@ -212,41 +222,41 @@ class Exit(NamedTuple):
     def from_args(cls, args):
         return cls()
 
+
 # ################# Parsing and validating ##################
 
 
 def makeCommand(line):
     char, *args = line.split()
 
-    commandChars = {'I': New,
-                    'C': Clean,
-                    'L': Coloring,
-                    'V': VerticalColoring,
-                    'H': HorizontalColoring,
-                    'F': FillColor,
-                    'S': Show,
-                    'X': Exit,
-                    }
+    commandChars = {
+        "I": New,
+        "C": Clean,
+        "L": Coloring,
+        "V": VerticalColoring,
+        "H": HorizontalColoring,
+        "F": FillColor,
+        "S": Show,
+        "X": Exit,
+    }
 
-    return commandChars[char].from_args(args)
+    return commandChars.get(char, NoOp).from_args(args)
 
 
 # ################# Interpreter Loop ##################
 
+
 def main():
     def prompt():
-        print('> ', end='', flush=True)
+        print("> ", end="", flush=True)
 
     board = None
     prompt()
     for line in fileinput.input():
         command = makeCommand(line)
-        if command is None:
-            continue
-
         board = command.apply(board)
         prompt()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
